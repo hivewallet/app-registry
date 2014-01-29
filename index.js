@@ -1,7 +1,7 @@
 var git = require('git-node');
 var basename = require('path').basename;
 
-function fetch(url, callback) {
+function fetch(url) {
   var remote = git.remote(url);
   var path = 'repos/' + basename(remote.pathname);
   var repo = git.repo(path);
@@ -13,10 +13,6 @@ function fetch(url, callback) {
       process.stderr.write(progress);
     }
   };
-
-  if (process.env.DEPTH) {
-    opts.depth = parseInt(process.env.DEPTH, 10);
-  }
 
   repo.fetch(remote, opts, function(err){
     if (err) throw err;
