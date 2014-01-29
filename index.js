@@ -1,7 +1,8 @@
-var git = require('git-node');
-var basename = require('path').basename;
+var git = require('git-node')
+var basename = require('path').basename
+var semver = require('semver-loose')
 
-function fetch(url) {
+function fetch(url, callback) {
   var remote = git.remote(url);
   var path = 'repos/' + basename(remote.pathname);
   var repo = git.repo(path);
@@ -11,14 +12,15 @@ function fetch(url) {
   var opts = {
     onProgress: function (progress) {
       process.stderr.write(progress);
-    }
+    },
+    includeTag: true
   };
 
   repo.fetch(remote, opts, function(err){
     if (err) throw err;
-    console.log("Done");
+    console.log("Done: ", path);
 
-    listApps(repo)
+    callback(repo)
   });
 }
 
@@ -39,11 +41,24 @@ function listApps(repo) {
         match = regexp.exec(blob.toString())
       }
 
-      console.log(links)
+      links.forEach(function(repoUrl){
+        fetch(repoUrl, getTags)
+      })
     });
     })
   })
 }
 
-fetch("https://github.com/hivewallet/hive-osx.wiki.git")
+function getTags(repo) {
+  repo.listRefs("refs/tags", function(error, refs){
+    if(typeof refs != "object") return;
+
+    var versions = Object.keys(refs)
+    if(versions.length == 0) return;
+
+    console.log(versions.sort(semver.sort).reverse()[0])
+  })
+}
+
+fetch("https://github.com/hivewallet/hive-osx.wiki.git", listApps)
 
