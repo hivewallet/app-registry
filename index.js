@@ -28,35 +28,65 @@ function listApps(repo) {
   // find App Registry
   repo.treeWalk("HEAD", function(err, tree){
     tree.read(function(err, entry){
-      var registry = entry.body.filter(function(node){ return node.name == 'App-Registry.md' })[0]
+      var registry = entry.body.filter(function(node){
+        return node.name === 'App-Registry.md'
+      })[0]
       repo.loadAs("blob", registry.hash, function (err, blob) {
-      if (err) throw err;
+        if (err) throw err;
 
-      //match links in list
-      var links = [];
-      var regexp = /^[-|*|+]\s+\[(.*)\]\((.*)\)/gm;
-      var match = regexp.exec(blob.toString())
-      while (match != null) {
-        links.push(match[2])
-        match = regexp.exec(blob.toString())
-      }
+        //match links in list
+        var links = [];
+        var regexp = /^[-|*|+]\s+\[(.*)\]\((.*)\)/gm;
+        var match = regexp.exec(blob.toString())
+        while (match != null) {
+          links.push(match[2])
+          match = regexp.exec(blob.toString())
+        }
 
-      links.forEach(function(repoUrl){
-        fetch(repoUrl, getTags)
-      })
-    });
+        links.forEach(function(repoUrl){
+          fetch(repoUrl, getTags)
+        })
+      });
     })
   })
 }
 
 function getTags(repo) {
   repo.listRefs("refs/tags", function(error, refs){
-    if(typeof refs != "object") return;
+    if(typeof refs !== "object") return;
 
     var versions = Object.keys(refs)
-    if(versions.length == 0) return;
+    if(versions.length === 0) return;
 
-    console.log(versions.sort(semver.sort).reverse()[0])
+    var latestTag = versions.sort(semver.sort).reverse()[0]
+    getManifest(repo, refs[latestTag])
+  })
+}
+
+function getManifest(repo, sha) {
+  search(repo, sha, "manifest.json")
+}
+
+function search(repo, sha, filename) {
+  repo.treeWalk(sha, function(err, tree){
+    tree.read(function(err, entry){
+      console.log(entry)
+      var file = entry.body.filter(function(n){
+        return n.name === filename
+      })[0]
+
+      if(file === undefined) {
+        entry.body.filter(function(node){
+          return node.path.match(/\/$/)
+        }).forEach(function(n){
+          search(repo, n.hash, filename)
+        })
+      } else {
+        repo.loadAs("blob", file.hash, function (err, blob) {
+          console.log(blob.toString())
+        })
+      }
+    })
   })
 }
 
