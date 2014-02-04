@@ -1,8 +1,7 @@
+"use strict"
+
 var http = require('http')
 var Manifests = require('./manifests.js')
-var EventEmitter = require('events').EventEmitter
-
-var manifests = ''
 
 var server = http.createServer(function(req, res) {
   if (!req.url.match(/index\.json$/)) {
@@ -11,37 +10,49 @@ var server = http.createServer(function(req, res) {
   }
 
   res.setHeader('Content-Type', 'text/json')
-
-  if (!manifests) return loadManifests(res)
-
-  writeResponse(res)
+  getManifests(function(err, manifests) {
+    if(err) res.statusCode = 500, res.end(), console.error('error %s\n', err.message, err.stack)
+    res.write(JSON.stringify(manifests))
+    res.end()
+  })
 })
 
-var manifestReady = new EventEmitter()
+function getManifests(callback) {
+  callback = callback || function() {}
+  getManifests.queue = getManifests.queue || []
 
-function loadManifests(res) {
-  if (loadManifests.isLoading) {
-    return manifestReady.once('ready', function() {
-      writeResponse(res)
+  if (getManifests.manifest && !getManifests.forceLoad) {
+    return process.nextTick(function() {
+      callback(null, getManifests.manifest)
     })
   }
 
-  loadManifests.isLoading = true
+  getManifests.queue.push(callback)
+  if (getManifests.isLoading) return
+
+  getManifests.isLoading = true
 
   Manifests(function(err, m) {
-    if (err) return console.error('manifest error: %s \n', err.message, err.stack)
-
-    manifests = m
-    loadManifests.isLoading = false
-    manifestReady.emit('ready')
-
-    writeResponse(res)
+    if (err) return done(err, m)
+    getManifests.manifest = m
+    done(err, m)
   })
+
+  function done(err, m) {
+    getManifests.queue.forEach(function(cb) {
+      cb(err, m)
+    })
+    getManifests.queue = []
+    getManifests.isLoading = false
+
+    setTimeout(function() {
+      getManifests.forceLoad = true
+      getManifests()
+      getManifests.forceLoad = false
+    }, 10 * 60 * 1000) // refresh index every 10 minutes
+  }
 }
 
-function writeResponse(res) {
-  res.write(JSON.stringify(manifests))
-  res.end()
-}
-
-server.listen(9009)
+server.listen(9009, function() {
+  console.info('server listening on http://localhost:' + server.address().port)
+})
