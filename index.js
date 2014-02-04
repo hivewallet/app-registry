@@ -17,14 +17,12 @@ function fetch(url, callback) {
   };
 
   repo.fetch(remote, opts, function(err){
-    if (err) throw err;
     console.log("Done: ", path);
-
-    callback(repo)
+    callback(err, repo)
   });
 }
 
-function listApps(repo) {
+function listApps(repo, callback) {
   // find App Registry
   repo.treeWalk("HEAD", function(err, tree){
     tree.read(function(err, entry){
@@ -43,34 +41,54 @@ function listApps(repo) {
           match = regexp.exec(blob.toString())
         }
 
+        var fetchRemaining = links.length
+        var manifests = []
         links.forEach(function(repoUrl){
-          fetch(repoUrl, getTags)
+          fetch(repoUrl, function(err, repo) {
+            if(err)  {
+              // ignore error
+              console.error("fetch error: ", repoUrl, err.stack)
+              if(!--fetchRemaining) { callback() }
+              return
+            }
+
+            getTags(repo, function(err, manifest){
+              // ignore error
+              if(err) console.error("getTags error: ", repoUrl, err.stack);
+
+              if(manifest) manifests.push(manifest)
+              if(!--fetchRemaining) { callback(null, manifests) }
+            })
+          })
         })
-      });
+      })
     })
   })
 }
 
-function getTags(repo) {
-  repo.listRefs("refs/tags", function(error, refs){
-    if(typeof refs !== "object") return;
+function getTags(repo, callback) {
+  repo.listRefs("refs/tags", function(err, refs){
+    if(err) return callback(err);
 
     var versions = Object.keys(refs)
-    if(versions.length === 0) return;
+    if(versions.length === 0) return callback();
 
     var latestTag = versions.sort(semver.sort).reverse()[0]
-    getManifest(repo, refs[latestTag])
+    getManifest(repo, refs[latestTag], callback)
   })
 }
 
-function getManifest(repo, sha) {
-  search(repo, sha, "manifest.json")
+function getManifest(repo, sha, callback) {
+  search(repo, sha, "manifest.json", callback)
 }
 
-function search(repo, sha, filename) {
+function search(repo, sha, filename, callback) {
   repo.treeWalk(sha, function(err, tree){
+    if(err) return callback(err);
+
     tree.read(function(err, entry){
-      console.log(entry)
+      if(err) return callback(err);
+
       var file = entry.body.filter(function(n){
         return n.name === filename
       })[0]
@@ -79,16 +97,37 @@ function search(repo, sha, filename) {
         entry.body.filter(function(node){
           return node.path.match(/\/$/)
         }).forEach(function(n){
-          search(repo, n.hash, filename)
+          search(repo, n.hash, filename, callback)
         })
       } else {
         repo.loadAs("blob", file.hash, function (err, blob) {
-          console.log(blob.toString())
+          if(err) return callback(err)
+
+          toJSON(blob.toString(), function(err, data) {
+            callback(err, data)
+            callback = function(){ console.warn("calling load callback multiple times!") }
+          })
         })
       }
     })
   })
 }
 
-fetch("https://github.com/hivewallet/hive-osx.wiki.git", listApps)
+function toJSON(data, callback){
+  try{
+    callback(null, JSON.parse(data))
+  } catch (e) {
+    callback(e)
+  }
+}
+
+fetch("https://github.com/hivewallet/hive-osx.wiki.git", function(err, repo){
+  if(err) { throw err }
+
+  listApps(repo, function(err, manifests){
+    if(err) { throw err }
+
+    console.log(JSON.stringify(manifests))
+  })
+})
 
