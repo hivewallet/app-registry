@@ -30,25 +30,16 @@ function fetch(url, callback) {
 }
 
 function listApps(repo, callback) {
-  // find App Registry
   repo.treeWalk("HEAD", function(err, tree){
     tree.read(function(err, entry){
       var registry = entry.body.filter(function(node){
         return node.name === 'App-Registry.md'
       })[0]
+
       repo.loadAs("blob", registry.hash, function (err, blob) {
         if (err) throw err;
 
-        //match links in list
-        var links = [];
-        var regexp = /^[-|*|+]\s+\[(.*)\]\((.*)\)/gm;
-        blob = blob.toString()
-        var match = regexp.exec(blob)
-        while (match != null) {
-          links.push(match[2])
-          match = regexp.exec(blob)
-        }
-
+        var links = extractLinks(blob.toString())
         var fetchRemaining = links.length
         var manifests = []
         links.forEach(function(repoUrl){
@@ -69,6 +60,17 @@ function listApps(repo, callback) {
             })
           })
         })
+
+        function extractLinks(markdown) {
+          var links = [];
+          var regexp = /^[-|*|+]\s+\[(.*)\]\((.*)\)/gm;
+          var match = regexp.exec(markdown)
+          while (match != null) {
+            links.push(match[2])
+            match = regexp.exec(markdown)
+          }
+          return links;
+        }
 
         function ignoreError(err, repoUrl){
           console.error("Error: ", repoUrl, err.stack)
