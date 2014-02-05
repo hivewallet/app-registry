@@ -1,7 +1,13 @@
 var git = require('git-node')
 var basename = require('path').basename
 var semver = require('semver-loose')
-var fs = require('fs')
+
+module.exports = function(callback) {
+  fetch("https://github.com/hivewallet/hive-osx.wiki.git", function(err, repo){
+    if(err) return callback(err)
+    listApps(repo, callback)
+  })
+}
 
 function fetch(url, callback) {
   var remote = git.remote(url);
@@ -48,49 +54,55 @@ function listApps(repo, callback) {
         links.forEach(function(repoUrl){
           fetch(repoUrl, function(err, repo) {
             if(err)  {
-              // ignore error
-              console.error("fetch error: ", repoUrl, err.stack)
-              if(!--fetchRemaining) { callback() }
-              return
+              return ignoreError(err, repoUrl)
             }
 
-            getTags(repo, function(err, manifest){
-              // ignore error
-              if(err) console.error("getTags error: ", repoUrl, err.stack);
+            getLatestTagRef(repo, function(err, ref){
+              if(err) return ignoreError(err, repoUrl)
 
-              if(manifest) manifests.push(manifest)
-              if(!--fetchRemaining) { callback(null, manifests) }
+              parseManifest(repo, ref, function(err, manifest) {
+                if(err) return ignoreError(err, repoUrl)
+
+                if(manifest) manifests.push(manifest);
+                if(!--fetchRemaining) { callback(null, manifests) }
+              })
             })
           })
         })
+
+        function ignoreError(err, repoUrl){
+          console.error("Error: ", repoUrl, err.stack)
+          if(!--fetchRemaining) { callback(null, manifests) }
+        }
       })
     })
   })
 }
 
-function getTags(repo, callback) {
+function getLatestTagRef(repo, callback) {
   repo.listRefs("refs/tags", function(err, refs){
     if(err) return callback(err);
 
     var versions = Object.keys(refs)
-    if(versions.length === 0) return callback();
+    if(versions.length === 0) {
+      return callback(new Error("no tags found"));
+    }
 
     var latestTag = versions.sort(semver.sort).reverse()[0]
-    findFile(repo, refs[latestTag], "manifest.json", function(err, blob){
-      toJSON(blob.toString(), function(err, data) {
-        callback(err, data)
-        callback = function(){ console.warn("calling load callback multiple times!") }
-      })
+
+    callback(null, refs[latestTag])
+  })
+}
+
+function parseManifest(repo, sha, callback) {
+  findFile(repo, sha, "manifest.json", function(err, blob){
+    toJSON(blob.toString(), function(err, data) {
+      if(err) return callback(err);
+
+      callback(err, data)
+      callback = function(){ console.warn("calling load callback multiple times!") }
     })
   })
-
-  function toJSON(data, callback){
-    try{
-      callback(null, JSON.parse(data))
-    } catch (e) {
-      callback(e)
-    }
-  }
 }
 
 function findFile(repo, sha, filename, callback) {
@@ -111,19 +123,17 @@ function findFile(repo, sha, filename, callback) {
           findFile(repo, n.hash, filename, callback)
         })
       } else {
-        repo.loadAs("blob", file.hash, function (err, blob) {
-          if(err) return callback(err)
-          callback(null, blob)
-        })
+        repo.loadAs("blob", file.hash, callback)
       }
     })
   })
 }
 
-module.exports = function(callback) {
-  fetch("https://github.com/hivewallet/hive-osx.wiki.git", function(err, repo){
-    if(err) return callback(err)
-    listApps(repo, callback)
-  })
+function toJSON(data, callback){
+  try{
+    callback(null, JSON.parse(data))
+  } catch (e) {
+    callback(e)
+  }
 }
 
