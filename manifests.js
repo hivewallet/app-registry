@@ -36,10 +36,11 @@ function listApps(repo, callback) {
         //match links in list
         var links = [];
         var regexp = /^[-|*|+]\s+\[(.*)\]\((.*)\)/gm;
-        var match = regexp.exec(blob.toString())
+        blob = blob.toString()
+        var match = regexp.exec(blob)
         while (match != null) {
           links.push(match[2])
-          match = regexp.exec(blob.toString())
+          match = regexp.exec(blob)
         }
 
         var fetchRemaining = links.length
