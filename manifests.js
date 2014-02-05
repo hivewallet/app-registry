@@ -75,15 +75,24 @@ function getTags(repo, callback) {
     if(versions.length === 0) return callback();
 
     var latestTag = versions.sort(semver.sort).reverse()[0]
-    getManifest(repo, refs[latestTag], callback)
+    findFile(repo, refs[latestTag], "manifest.json", function(err, blob){
+      toJSON(blob.toString(), function(err, data) {
+        callback(err, data)
+        callback = function(){ console.warn("calling load callback multiple times!") }
+      })
+    })
   })
+
+  function toJSON(data, callback){
+    try{
+      callback(null, JSON.parse(data))
+    } catch (e) {
+      callback(e)
+    }
+  }
 }
 
-function getManifest(repo, sha, callback) {
-  search(repo, sha, "manifest.json", callback)
-}
-
-function search(repo, sha, filename, callback) {
+function findFile(repo, sha, filename, callback) {
   repo.treeWalk(sha, function(err, tree){
     if(err) return callback(err);
 
@@ -98,28 +107,16 @@ function search(repo, sha, filename, callback) {
         entry.body.filter(function(node){
           return node.path.match(/\/$/)
         }).forEach(function(n){
-          search(repo, n.hash, filename, callback)
+          findFile(repo, n.hash, filename, callback)
         })
       } else {
         repo.loadAs("blob", file.hash, function (err, blob) {
           if(err) return callback(err)
-
-          toJSON(blob.toString(), function(err, data) {
-            callback(err, data)
-            callback = function(){ console.warn("calling load callback multiple times!") }
-          })
+          callback(null, blob)
         })
       }
     })
   })
-}
-
-function toJSON(data, callback){
-  try{
-    callback(null, JSON.parse(data))
-  } catch (e) {
-    callback(e)
-  }
 }
 
 module.exports = function(callback) {
