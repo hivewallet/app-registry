@@ -53,6 +53,7 @@ function getManifests(callback) {
   }
 }
 
+getManifests()
 server.listen(9009, function() {
   console.info('server listening on http://localhost:' + server.address().port)
 })
