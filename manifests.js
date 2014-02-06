@@ -123,7 +123,9 @@ function saveIcon(repo, sha, destDir, srcPath) {
     //ignore error
     if(err) return console.log("error listFile: ", err.stack);
 
-    if(entry.path === '/' + srcPath || entry.path === srcPath) {
+    //TODO: make me more robust
+    var iconPathRegex = new RegExp(srcPath + '$')
+    if(entry.path.match(iconPathRegex)) {
       writeFile('public/' + destDir + '/icon.png', entry.body, function (err) {
         //ignore error
         if (err) console.log("failed to save icon file for", destDir, err.stack);
