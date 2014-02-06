@@ -2,20 +2,17 @@
 
 var http = require('http')
 var Manifests = require('./manifests.js')
+var router = require('router');
+var route = router();
 
-var server = http.createServer(function(req, res) {
-  if (!req.url.match(/index\.json$/)) {
-    res.statusCode = 404
-    return res.end()
-  }
-
+route.get('/index.json', function(req, res) {
   res.setHeader('Content-Type', 'text/json')
   getManifests(function(err, manifests) {
     if(err) res.statusCode = 500, res.end(), console.error('error %s\n', err.message, err.stack)
     res.write(JSON.stringify(manifests))
     res.end()
   })
-})
+});
 
 function getManifests(callback) {
   callback = callback || function() {}
@@ -54,6 +51,8 @@ function getManifests(callback) {
 }
 
 getManifests()
+
+var server = http.createServer(route)
 server.listen(process.env.PORT || 9009, function() {
   console.info('server listening on http://localhost:' + server.address().port)
 })
