@@ -49,7 +49,7 @@ function listApps(repo, callback) {
             }
 
             getLatestTagRef(repo, function(err, ref){
-              if(err) return ignoreError(err, repoUrl)
+              if(err) return ignoreError(err, repoUrl);
 
               parseManifest(repo, ref, function(err, manifest) {
                 if(err) return ignoreError(err, repoUrl)
@@ -97,38 +97,35 @@ function getLatestTagRef(repo, callback) {
 }
 
 function parseManifest(repo, sha, callback) {
-  findFile(repo, sha, "manifest.json", function(err, blob){
-    toJSON(blob.toString(), function(err, data) {
-      if(err) return callback(err);
+  listFiles(repo, sha, function(err, entry){
+    //ignore error
+    if(err) return console.log("error listFile: ", err.stack);
 
-      callback(err, data)
-      callback = function(){ console.warn("calling load callback multiple times!") }
-    })
+    if(entry.name === 'manifest.json') {
+      toJSON(entry.body.toString(), function(err, data) {
+        if(err) return callback(err);
+
+        callback(err, data)
+        callback = function(){ console.warn("calling load callback multiple times!") }
+      })
+    }
   })
 }
 
-function findFile(repo, sha, filename, callback) {
-  repo.treeWalk(sha, function(err, tree){
-    if(err) return callback(err);
-
-    tree.read(function(err, entry){
-      if(err) return callback(err);
-
-      var file = entry.body.filter(function(n){
-        return n.name === filename
-      })[0]
-
-      if(file === undefined) {
-        entry.body.filter(function(node){
-          return node.path.match(/\/$/)
-        }).forEach(function(n){
-          findFile(repo, n.hash, filename, callback)
-        })
-      } else {
-        repo.loadAs("blob", file.hash, callback)
+function listFiles(repo, sha, callback, done) {
+  done = done || function(){}
+  repo.treeWalk(sha, function (err, tree) {
+    if (err) return callback(err);
+    tree.read(onEntry);
+    function onEntry(err, entry) {
+      if (err) return callback(err);
+      if (!entry) {
+        return done()
       }
-    })
-  })
+      callback(null, entry);
+      return tree.read(onEntry);
+    }
+  });
 }
 
 function toJSON(data, callback){
