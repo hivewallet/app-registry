@@ -126,7 +126,7 @@ function saveIcon(repo, sha, destDir, srcPath) {
     //TODO: make me more robust
     var iconPathRegex = new RegExp(srcPath + '$')
     if(entry.path.match(iconPathRegex)) {
-      writeFile('public/' + destDir + '/icon.png', entry.body, function (err) {
+      writeFile('public/' + destDir + '/' + srcPath, entry.body, function (err) {
         //ignore error
         if (err) console.log("failed to save icon file for", destDir, err.stack);
       });
