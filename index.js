@@ -53,13 +53,11 @@ function getManifests(callback) {
 
 getManifests()
 
-var mount = st({ path: __dirname + '/public', url: '/' })
+var mount = st({ path: __dirname + '/public', url: '/', passthrough: true })
 var server = http.createServer(function(req, res) {
-  var stHandled = mount(req, res);
-  if (stHandled)
-    return
-  else
+  mount(req, res, function(){
     route(req, res)
+  })
 })
 server.listen(process.env.PORT || 9009, function() {
   console.info('server listening on http://localhost:' + server.address().port)
