@@ -1,6 +1,9 @@
 var git = require('git-node')
-var basename = require('path').basename
 var semver = require('semver-loose')
+var basename = require('path').basename
+var getDirName = require("path").dirname
+var mkdirp = require("mkdirp")
+var fs = require('fs')
 
 module.exports = function(callback) {
   fetch("https://github.com/hivewallet/hive-osx.wiki.git", function(err, repo){
@@ -54,7 +57,10 @@ function listApps(repo, callback) {
               parseManifest(repo, ref, function(err, manifest) {
                 if(err) return ignoreError(err, repoUrl)
 
-                if(manifest) manifests.push(manifest);
+                if(manifest) {
+                  manifests.push(manifest)
+                  saveIcon(repo, ref, manifest.id, manifest.icon)
+                }
                 if(!--fetchRemaining) { callback(null, manifests) }
               })
             })
@@ -112,6 +118,20 @@ function parseManifest(repo, sha, callback) {
   })
 }
 
+function saveIcon(repo, sha, destDir, srcPath) {
+  listFiles(repo, sha, function(err, entry){
+    //ignore error
+    if(err) return console.log("error listFile: ", err.stack);
+
+    if(entry.path === '/' + srcPath || entry.path === srcPath) {
+      writeFile('public/' + destDir + '/icon.png', entry.body, function (err) {
+        //ignore error
+        if (err) console.log("failed to save icon file for", destDir, err.stack);
+      });
+    }
+  })
+}
+
 function listFiles(repo, sha, callback, done) {
   done = done || function(){}
   repo.treeWalk(sha, function (err, tree) {
@@ -134,5 +154,12 @@ function toJSON(data, callback){
   } catch (e) {
     callback(e)
   }
+}
+
+function writeFile (path, contents, callback) {
+  mkdirp(getDirName(path), function (err) {
+    if (err) return callback(err)
+    fs.writeFile(path, contents, callback)
+  })
 }
 
