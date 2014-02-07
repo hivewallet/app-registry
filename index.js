@@ -53,7 +53,17 @@ function getManifests(callback) {
 
 getManifests()
 
-var mount = st({ path: __dirname + '/public', url: '/', passthrough: true })
+var mount = st({
+  path: __dirname + '/public',
+  url: '/',
+  passthrough: true,
+  cache: {
+    content: {
+      max: 1024*1024*64,
+      maxAge: 1000*60*10,
+    }
+  }
+})
 var server = http.createServer(function(req, res) {
   mount(req, res, function(){
     route(req, res)
