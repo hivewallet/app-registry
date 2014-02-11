@@ -5,6 +5,7 @@ var Manifests = require('./manifests.js')
 var router = require('router')
 var route = router()
 var st = require('st')
+require('newrelic')
 
 route.get('/index.json', function(req, res) {
   res.setHeader('Content-Type', 'text/json')
