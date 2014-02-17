@@ -135,18 +135,28 @@ function saveIcon(repo, sha, destDir, srcPath) {
 
 function listFiles(repo, sha, callback, done) {
   done = done || function(){}
-  repo.treeWalk(sha, function (err, tree) {
+
+  repo.load(sha, function(err, entry){
     if (err) return callback(err);
-    tree.read(onEntry);
-    function onEntry(err, entry) {
-      if (err) return callback(err);
-      if (!entry) {
-        return done()
-      }
-      callback(null, entry);
-      return tree.read(onEntry);
+
+    var treeRef = sha
+    if(entry.type === 'tag') {
+      treeRef = entry.body.object
     }
-  });
+
+    repo.treeWalk(treeRef, function (err, tree) {
+      if (err) return callback(err);
+      tree.read(onEntry);
+      function onEntry(err, entry) {
+        if (err) return callback(err);
+        if (!entry) {
+          return done()
+        }
+        callback(null, entry);
+        return tree.read(onEntry);
+      }
+    });
+  })
 }
 
 function toJSON(data, callback){
