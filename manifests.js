@@ -104,8 +104,7 @@ function getLatestTagRef(repo, callback) {
 
 function parseManifest(repo, sha, callback) {
   listFiles(repo, sha, function(err, entry){
-    //ignore error
-    if(err) return console.log("error listFile: ", err.stack);
+    if(err) return callback(err);
 
     if(entry.name === 'manifest.json') {
       toJSON(entry.body.toString(), function(err, data) {
