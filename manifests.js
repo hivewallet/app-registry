@@ -55,7 +55,7 @@ function listApps(repo, callback) {
             getLatestTagRef(repo, function(err, ref){
               if(err) return ignoreError(err, repoUrl);
 
-              parseManifest(repo, ref, function(err, manifest) {
+              parseManifest(repo, ref, function(err, manifest, manifestPath) {
                 if(err) return ignoreError(err, repoUrl)
 
                 if(manifest) {
@@ -65,7 +65,7 @@ function listApps(repo, callback) {
                     errorWritingFile = err
                   }, function(){
                     if(errorWritingFile) return;
-                    packageRepo(manifest.id)
+                    packageRepo(manifest.id, manifestPath.replace('/manifest.json', ''))
                   })
                 }
                 if(!--fetchRemaining) { callback(null, manifests) }
@@ -90,8 +90,9 @@ function listApps(repo, callback) {
           if(!--fetchRemaining) { callback(null, manifests) }
         }
 
-        function packageRepo(dirname){
-          console.log("packaging", dirname)
+        function packageRepo(dirname, subdirname){
+          subdirname = subdirname || ''
+          console.log("packaging", dirname, subdirname)
           var output = fs.createWriteStream('public/' + dirname + '.hiveapp');
           var archive = archiver('zip');
 
@@ -106,8 +107,9 @@ function listApps(repo, callback) {
 
           archive.pipe(output);
 
+          var path = 'public/' + dirname + subdirname
           archive.bulk([
-            { expand: true, cwd: 'public/' + dirname, src: ['**/*'] }
+            { expand: true, cwd: path, src: ['**/*'] }
           ]).finalize();
         }
       })
@@ -139,11 +141,10 @@ function parseManifest(repo, sha, callback) {
     if(err) return callback(err);
 
     if(entry.name === 'manifest.json') {
-      console.log("============> ", entry.path)
       toJSON(entry.body.toString(), function(err, data) {
         if(err) return callback(err);
 
-        callback(err, data)
+        callback(err, data, entry.path)
         callback = function(){ console.warn("calling load callback multiple times!") }
       })
     }
@@ -152,7 +153,10 @@ function parseManifest(repo, sha, callback) {
 
 function writeRepoToFile(dirname, repo, sha, callback, done) {
   listFiles(repo, sha, function(err, entry){
-    if(err) return callback(err);
+    if(err) {
+      console.log("failed to list directory", dirname, err.stack);
+      return callback(err);
+    }
 
     writeEntryToFile(dirname, entry, callback)
   }, done)
