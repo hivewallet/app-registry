@@ -116,7 +116,8 @@ function listApps(repo, callback) {
 }
 
 function getLatestTagRef(repo, callback) {
-  repo.listRefs("refs/tags", function(err, refs){
+  var prefix = "refs/tags"
+  repo.listRefs(prefix, function(err, refs){
     if(err) return callback(err);
 
     var versions = Object.keys(refs)
@@ -124,7 +125,10 @@ function getLatestTagRef(repo, callback) {
       return callback(new Error("no tags found"));
     }
 
-    var latestTag = versions.sort(semver.sort).reverse()[0]
+    var latestTag = versions.sort(function(a, b) {
+      return semver.sort(a.replace(prefix + '/', ''), b.replace(prefix + '/', ''))
+    }).reverse()[0]
+    console.log("checking out tag", latestTag)
 
     callback(null, refs[latestTag])
   })
