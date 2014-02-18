@@ -59,7 +59,13 @@ function listApps(repo, callback) {
 
                 if(manifest) {
                   manifests.push(manifest)
-                  saveIcon(repo, ref, manifest.id, manifest.icon)
+                  var errorWritingFile = null;
+                  writeRepoToFile(manifest.id, repo, ref, function(err){
+                    errorWritingFile = err
+                  }, function(){
+                    if(errorWritingFile) return;
+                    packageRepo(manifest.id)
+                  })
                 }
                 if(!--fetchRemaining) { callback(null, manifests) }
               })
@@ -81,6 +87,10 @@ function listApps(repo, callback) {
         function ignoreError(err, repoUrl){
           console.error("Error: ", repoUrl, err.stack)
           if(!--fetchRemaining) { callback(null, manifests) }
+        }
+
+        function packageRepo(dirname){
+          console.log("packaging", dirname)
         }
       })
     })
@@ -107,6 +117,7 @@ function parseManifest(repo, sha, callback) {
     if(err) return callback(err);
 
     if(entry.name === 'manifest.json') {
+      console.log("============> ", entry.path)
       toJSON(entry.body.toString(), function(err, data) {
         if(err) return callback(err);
 
@@ -117,20 +128,23 @@ function parseManifest(repo, sha, callback) {
   })
 }
 
-function saveIcon(repo, sha, destDir, srcPath) {
+function writeRepoToFile(dirname, repo, sha, callback, done) {
   listFiles(repo, sha, function(err, entry){
-    //ignore error
-    if(err) return console.log("error listFile: ", err.stack);
+    if(err) return callback(err);
 
-    //TODO: make me more robust
-    var iconPathRegex = new RegExp(srcPath + '$')
-    if(entry.path.match(iconPathRegex)) {
-      writeFile('public/' + destDir + '/' + srcPath, entry.body, function (err) {
-        //ignore error
-        if (err) console.log("failed to save icon file for", destDir, err.stack);
-      });
-    }
-  })
+    writeEntryToFile(dirname, entry, callback)
+  }, done)
+}
+
+function writeEntryToFile(dirname, entry, callback) {
+  if(entry.type === 'blob') {
+    writeFile('public/' + dirname + entry.path, entry.body, function (err) {
+      if (err) {
+        console.log("failed to save file ", entry.path, 'to', dirname, err.stack);
+        return callback(err)
+      }
+    });
+  }
 }
 
 function listFiles(repo, sha, callback, done) {
