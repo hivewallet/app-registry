@@ -61,11 +61,11 @@ function listApps(repo, callback) {
                 if(manifest) {
                   manifests.push(manifest)
                   var errorWritingFile = null;
-                  writeRepoToFile(manifest.id, repo, ref, function(err){
+                  SaveAppDirToFile(manifest.id, manifestPath.replace('/manifest.json', ''), repo, ref, function(err){
                     errorWritingFile = err
                   }, function(){
                     if(errorWritingFile) return;
-                    packageRepo(manifest.id, manifestPath.replace('/manifest.json', ''))
+                    packageRepo(manifest.id)
                   })
                 }
                 if(!--fetchRemaining) { callback(null, manifests) }
@@ -90,9 +90,8 @@ function listApps(repo, callback) {
           if(!--fetchRemaining) { callback(null, manifests) }
         }
 
-        function packageRepo(dirname, subdirname){
-          subdirname = subdirname || ''
-          console.log("packaging", dirname, subdirname)
+        function packageRepo(dirname){
+          console.log("packaging", dirname)
           var output = fs.createWriteStream('public/' + dirname + '.hiveapp');
           var archive = archiver('zip');
 
@@ -107,9 +106,8 @@ function listApps(repo, callback) {
 
           archive.pipe(output);
 
-          var path = 'public/' + dirname + subdirname
           archive.bulk([
-            { expand: true, cwd: path, src: ['**/*'] }
+            { expand: true, cwd: 'public/' + dirname, src: ['**/*'] }
           ]).finalize();
         }
       })
@@ -151,20 +149,23 @@ function parseManifest(repo, sha, callback) {
   })
 }
 
-function writeRepoToFile(dirname, repo, sha, callback, done) {
+function SaveAppDirToFile(dirname, subdirname, repo, sha, callback, done) {
   listFiles(repo, sha, function(err, entry){
     if(err) {
       console.log("failed to list directory", dirname, err.stack);
       return callback(err);
     }
 
-    writeEntryToFile(dirname, entry, callback)
+    if(entry.path.indexOf(subdirname) === 0) {
+      var dest = 'public/' + dirname + entry.path.replace(subdirname, '')
+      writeEntryToFile(dest, entry, callback)
+    }
   }, done)
 }
 
 function writeEntryToFile(dirname, entry, callback) {
   if(entry.type === 'blob') {
-    writeFile('public/' + dirname + entry.path, entry.body, function (err) {
+    writeFile(dirname, entry.body, function (err) {
       if (err) {
         console.log("failed to save file ", entry.path, 'to', dirname, err.stack);
         return callback(err)
