@@ -60,14 +60,12 @@ function listApps(repo, callback) {
 
                 if(manifest) {
                   manifests.push(manifest)
-
-                  var subdirname = manifestPath.replace('/manifest.json', '');
                   var errorWritingFile = null;
-                  writeRepoToFile(manifest.id + subdirname, repo, ref, function(err){
+                  writeRepoToFile(manifest.id, repo, ref, function(err){
                     errorWritingFile = err
                   }, function(){
                     if(errorWritingFile) return;
-                    packageRepo(manifest.id, subdirname)
+                    packageRepo(manifest.id, manifestPath.replace('/manifest.json', ''))
                   })
                 }
                 if(!--fetchRemaining) { callback(null, manifests) }
@@ -166,8 +164,7 @@ function writeRepoToFile(dirname, repo, sha, callback, done) {
 
 function writeEntryToFile(dirname, entry, callback) {
   if(entry.type === 'blob') {
-    var path = 'public/' + dirname + entry.path
-    writeFile(path, entry.body, function (err) {
+    writeFile('public/' + dirname + entry.path, entry.body, function (err) {
       if (err) {
         console.log("failed to save file ", entry.path, 'to', dirname, err.stack);
         return callback(err)
