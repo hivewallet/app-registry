@@ -2,3 +2,4 @@ node_modules
 repos/*
 !repos/.gitkeep
 public/*
+!public/.gitkeep
