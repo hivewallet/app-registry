@@ -4,6 +4,7 @@ var basename = require('path').basename
 var getDirName = require("path").dirname
 var mkdirp = require("mkdirp")
 var fs = require('fs')
+var archiver = require('archiver')
 
 module.exports = function(callback) {
   fetch("https://github.com/hivewallet/hive-osx.wiki.git", function(err, repo){
@@ -91,6 +92,23 @@ function listApps(repo, callback) {
 
         function packageRepo(dirname){
           console.log("packaging", dirname)
+          var output = fs.createWriteStream('public/' + dirname + '.hiveapp');
+          var archive = archiver('zip');
+
+          output.on('close', function() {
+            console.log(archive.pointer() + ' total bytes');
+            console.log('archiver has been finalized and the output file descriptor has closed.');
+          });
+
+          archive.on('error', function(err) {
+            throw err;
+          });
+
+          archive.pipe(output);
+
+          archive.bulk([
+            { expand: true, cwd: 'public/' + dirname, src: ['**/*'] }
+          ]).finalize();
         }
       })
     })
