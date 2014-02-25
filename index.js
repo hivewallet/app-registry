@@ -68,7 +68,9 @@ var mount = st({
   }
 })
 var server = http.createServer(function(req, res) {
-  visitor.pageview(req.url).send()
+  visitor.pageview(req.url, function(err){
+    if(err) console.err(err.message, err.stack)
+  }).send()
   mount(req, res, function(){
     route(req, res)
   })
