@@ -61,11 +61,19 @@ function listApps(repo, callback) {
                 if(manifest) {
                   manifests.push(manifest)
                   var errorWritingFile = null;
+                  var filesWritten = 0;
+                  var totalFiles = Number.MAX_VALUE;
                   SaveAppDirToFile(manifest.id, manifestPath.replace('/manifest.json', ''), repo, ref, function(err){
-                    errorWritingFile = err
-                  }, function(){
+                    if(err) return errorWritingFile = err;
+
+                    filesWritten++;
+
+                    if(filesWritten == totalFiles) {
+                      packageRepo(manifest.id)
+                    }
+                  }, function(entryCount){
                     if(errorWritingFile) return;
-                    packageRepo(manifest.id)
+                    totalFiles = entryCount
                   })
                 }
                 if(!--fetchRemaining) { callback(null, manifests) }
@@ -159,6 +167,8 @@ function SaveAppDirToFile(dirname, subdirname, repo, sha, callback, done) {
     if(entry.path.indexOf(subdirname) === 0) {
       var dest = 'public/' + dirname + entry.path.replace(subdirname, '')
       writeEntryToFile(dest, entry, callback)
+    } else if(entry.type === 'blob') {
+      callback()
     }
   }, done)
 }
@@ -170,6 +180,8 @@ function writeEntryToFile(dirname, entry, callback) {
         console.log("failed to save file ", entry.path, 'to', dirname, err.stack);
         return callback(err)
       }
+
+      callback()
     });
   }
 }
@@ -185,13 +197,17 @@ function listFiles(repo, sha, callback, done) {
       treeRef = entry.body.object
     }
 
+    var entryCount = 0;
     repo.treeWalk(treeRef, function (err, tree) {
       if (err) return callback(err);
       tree.read(onEntry);
       function onEntry(err, entry) {
         if (err) return callback(err);
         if (!entry) {
-          return done()
+          return done(entryCount)
+        }
+        if(entry.type === 'blob') {
+          entryCount++;
         }
         callback(null, entry);
         return tree.read(onEntry);
