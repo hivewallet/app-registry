@@ -5,6 +5,8 @@ var Manifests = require('./manifests.js')
 var router = require('router')
 var route = router()
 var st = require('st')
+var ua = require('universal-analytics')
+var visitor = ua('UA-48397837-1')
 require('newrelic')
 
 route.get('/index.json', function(req, res) {
@@ -66,6 +68,7 @@ var mount = st({
   }
 })
 var server = http.createServer(function(req, res) {
+  visitor.pageview(req.url).send()
   mount(req, res, function(){
     route(req, res)
   })
