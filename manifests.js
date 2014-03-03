@@ -56,7 +56,7 @@ function listApps(repo, callback) {
               if(err) return ignoreError(err, repoUrl);
 
               parseManifest(repo, ref, function(err, manifest, manifestPath) {
-                if(err) return ignoreError(err, repoUrl)
+                if(err) return ignoreError(err, repoUrl);
 
                 if(manifest) {
                   manifests.push(manifest)
@@ -73,7 +73,11 @@ function listApps(repo, callback) {
                     }
                   }, function(entryCount){
                     if(errorWritingFile) return;
+
                     totalFiles = entryCount
+                    if(filesWritten == totalFiles) {
+                      packageRepo(manifest.id)
+                    }
                   })
                 }
                 if(!--fetchRemaining) { callback(null, manifests) }
