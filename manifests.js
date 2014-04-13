@@ -7,7 +7,7 @@ var fs = require('fs')
 var archiver = require('archiver')
 
 module.exports = function(callback) {
-  fetch("https://github.com/hivewallet/hive-osx.wiki.git", function(err, repo){
+  fetch("https://github.com/hivewallet/hive-android.wiki.git", function(err, repo){
     if(err) return callback(err)
     listApps(repo, callback)
   })
